@@ -4,11 +4,11 @@ close all
 % This script is useful for the cropping and calibration of c3dData. It is
 % meant to have as input a c3d file and then assist with the editing.
 %% Load the calibration file
-[calibrationSignals, calibrationSampleRate] = loadc3dFile();
+[calibrationSignals, calibrationSampleRate, calibrationFileName] = loadc3dFile();
 %% Predict configuration
 [calibrationSensorsNumber, calibrationDataType] = predictConfiguration(calibrationSignals);
 %% Load the file to be calibrated
-[toCalibrateSignals, toCalibrateSampleRate] = loadc3dFile();
+[toCalibrateSignals, toCalibrateSampleRate, toCalibrateFileName] = loadc3dFile();
 %% Predict configuration
 [toCalibrateSensorsNumber, toCalibrateDataType] = predictConfiguration(toCalibrateSignals);
 %% If configurations are not the same throw an error
@@ -35,22 +35,24 @@ toCalibrateSignals = toCalibrateSignals(indices(2).DataIndex:indices(1).DataInde
 %% Plot the new signal
 time = createTimeArray(length(toCalibrateSignals), toCalibrateSampleRate);
 plot(time, toCalibrateSignals(:, signal));
-%% Calibrate the z-axis of the accelerometers
-% Acceleration is measured in g
-expectedValue = -1;
+%% Wait for response if calibration is needed or not
+choice = input('Type "Y" if you wish to calibrate the signal or "N" if you don''t: ');
 calibratedSignals = toCalibrateSignals;
-for i = 7:13:size(toCalibrateSignals, 2)
-    for j = 1:length(toCalibrateSignals)
-        % The first value is used because it is sure to be when the sensor
-        % is static
-        offset = expectedValue - calibrationSignals(1, i);
-        calibratedSignals(j, i) = toCalibrateSignals(j, i) + offset;
+if strcmp(choice, 'Y')
+    %% Calibrate the z-axis of the accelerometers
+    for i = 7:13:size(toCalibrateSignals, 2)
+        for j = 1:length(toCalibrateSignals)
+            % The first value is used because it is sure to be when the sensor
+            % is static for each case
+            offset = calibrationProcess(1, calibrationSignals(1, i));
+            calibratedSignals(j, i) = toCalibrateSignals(j, i) + offset;
+        end
     end
+    plot(time, calibratedSignals(:, signal));
 end
-hold on
-plot(time, calibratedSignals(:, signal));
-
-save 
+%% Save the calibrated signals into a mat file
+calibratedFileName = split(toCalibrateFileName, '.');
+save(calibratedFileName{1}, 'calibratedSignals');
 
 
 
